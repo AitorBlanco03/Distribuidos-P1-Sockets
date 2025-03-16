@@ -33,12 +33,4 @@ public interface IChatServer {
 	 * @param message - El mensaje que será reenviado a todos los usuarios conectados.
 	 */
 	void sendBroadcastMessage(ChatMessage message);
-	
-	/**
-	 * Elimina un usuario de la lista de usuarios conectados, indicando que ese usuario
-	 * ha cerrado sesión o se ha desconectado del sistema.
-	 * 
-	 * @param userName - El usuario que ha cerrado sesión o se ha desconectado del sistema.
-	 */
-	void removeConnectUser(String userName);
 }
