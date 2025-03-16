@@ -182,8 +182,6 @@ public class ChatClient implements IChatClient {
 			// Mantenemos activo el hilo mientras que el cliente este conectado.
 			while (isRunning) {
 				if (messageReader.hasNextLine()) {
-					// Mostramos el prompt "[YOU]: " para indicar que el usuario escriba su mensaje.
-					System.out.print("[YOU]: ");
 					// Leemos y procesamos la entrada del usuario antes de mandarla al servidor.
 					String userInput = messageReader.nextLine();
 					processUserInput(userInput);
@@ -343,6 +341,9 @@ public class ChatClient implements IChatClient {
 		// Intentamos conectar el usuario al servidor correspondiente.
 		if (newUser.connect()) {
 			System.out.println("[SYSTEM]: Conexión establecida. ¡Estás listo para comenzar a chatear!");
+			// Enviamos al servidor el username del usuario para iniciar la comunicación.
+			ChatMessage loginMessage = new ChatMessage(userName, MessageType.MESSAGE, "");
+            newUser.sendMessage(loginMessage);
 		} else {
 			System.err.println("[SYSTEM]: Saliendo del sistema...");
 			System.exit(1);
