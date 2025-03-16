@@ -138,6 +138,11 @@ public class ChatClient implements IChatClient {
 	@Override
 	public void disconnect() {
 		try {
+			// Enviamos un mensaje de LOGOUT al servidor
+	        if (senderMessages != null && isRunning) {
+	            ChatMessage logoutMessage = new ChatMessage(userName, MessageType.LOGOUT, "");
+	            sendMessage(logoutMessage);
+	        }
 			// Cerramos de forma segura los flujos de entrada y salida de mensajes.
 			if (receiverMessages != null) receiverMessages.close();
 			if (senderMessages != null) senderMessages.close();
