@@ -1,0 +1,32 @@
+<project name="Práctica 1 - Sistemas Distribuidos" default="javadoc" basedir=".">
+
+	<!-- Definimos las rutas a los directorios del proyecto que utilizaremos. -->
+	<property name="src.dir" value="src/main/java" />
+	<property name="doc.dir" value="doc" />
+	
+	<!-- Definimos una tarea para limpiar la carpeta "doc" antes de generar la documentación del proyecto. -->
+	<target name="clean">
+		<delete dir="${doc.dir}" />
+	</target>
+	
+	<!-- Definimos la tarea principal para generar la documentación del proyecto. -->
+	<target name="javadoc" depends="clean">
+		
+		<!-- Creamos la carpeta 'doc' si no existe. -->
+		<mkdir dir="${doc.dir}" />
+		
+		<!-- Generamos la documentación del proyecto. -->
+		<javadoc
+			packagenames="es.ubu.lsi.client es.ubu.lsi.common es.ubu.lsi.server"
+			sourcepath="${src.dir}"
+			destdir="${doc.dir}"
+			author="true"
+			version="true"
+			use="true"
+			windowtitle="Práctica 1 - Sistemas Distribuidos: Sockets"
+			doctitle="Documentación Javadoc - Práctica 1 de Sistemas Distribuidos"
+			classpath="target/classes" >
+		</javadoc>
+		
+	</target>
+</project>

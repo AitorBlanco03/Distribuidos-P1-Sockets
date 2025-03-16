@@ -1,6 +1,6 @@
 package es.ubu.lsi.server;
 
-// Importamos las librerías/paquetes necesarias para su ejecución.
+// Importamos las librerías/paquetes necesarias.
 import es.ubu.lsi.common.ChatMessage;
 
 /**
