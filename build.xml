@@ -17,9 +17,12 @@
 		
 		<!-- Generamos la documentación del proyecto. -->
 		<javadoc
-			packagenames="es.ubu.lsi.client es.ubu.lsi.common es.ubu.lsi.server"
+			packagenames="*"
 			sourcepath="${src.dir}"
 			destdir="${doc.dir}"
+			encoding="UTF-8"
+			docencoding="UTF-8"
+			charset="UTF-8"
 			author="true"
 			version="true"
 			use="true"
