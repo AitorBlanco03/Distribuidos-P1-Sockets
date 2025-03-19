@@ -30,6 +30,5 @@
 			doctitle="Documentación Javadoc - Práctica 1 de Sistemas Distribuidos"
 			classpath="target/classes" >
 		</javadoc>
-		
 	</target>
 </project>

@@ -1,36 +1,36 @@
 package es.ubu.lsi.server;
 
-// Importamos las librerías/paquetes necesarias.
+// Importamos las librerías/paquetes para definir la lógica y las operaciones básicas del servidor.
 import es.ubu.lsi.common.ChatMessage;
 
 /**
- * Interfaz que define la lógica y las operaciones básicas del servidor.
+ * Interfaz que define y establece la lógica y las operaciones básicas del
+ * servidor del chat.
+ * <p>
+ * Define la lógica y las operaciones básicas para iniciar y detener el servidor, así como
+ * el reenvío de mensajes a todos los usuarios conectados al servidor.
+ * </p>
  * 
  * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
- * @version 1.1.0
+ * @version 1.1.2
  */
-
 public interface IChatServer {
 	
 	/**
-	 * Inicializa y arranca el servidor, esperando y aceptando las conexiones entrantes.
-	 * <p>
-	 * Por cada usuario, se encarga de crear un hilo para manejar su comunicación de forma
-	 * independiente.
-	 * <p>
+	 * Inicia el servidor y comienza a aceptar nuevas conexiones entrantes.
 	 */
 	void startServer();
 	
 	/**
-	 * Finaliza el servidor cerrando todas las comunicaciones abiertas con los usuarios y
-	 * liberando consigo todos los recursos utilizados.
+	 * Detiene el servidor, cerrando todas las conexiones abiertas y dejando
+	 * de aceptar nuevas conexiones entrantes.
 	 */
 	void shutdownServer();
 	
 	/**
-	 * Reenvia el mensaje recibido a todos los usuarios conectados.
+	 * Reenvía el mensaje recibido a todos los usuarios conectados al servidor.
 	 * 
-	 * @param message - El mensaje que será reenviado a todos los usuarios conectados.
+	 * @param msg Mensaje que se desea reenviar a todos los usuarios conectados al servidor.
 	 */
-	void sendBroadcastMessage(ChatMessage message);
+	void sendBroadcastMessage(ChatMessage msg);
 }

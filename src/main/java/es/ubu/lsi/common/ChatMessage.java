@@ -1,85 +1,88 @@
 package es.ubu.lsi.common;
 
-// Importamos las librerías/paquetes necesarías para crear y serializar los mensajes del chat.
+// Importamos las librerías/paquetes necesarios para crear los mensajes del chat.
 import java.io.Serializable;
 
 /**
- * Representa un mensaje dentro del chat.
+ * Representa un mensaje dentro del sistema del chat.
  * <p>
- * Cada mensaje del chat tendrá asociado un tipo, un contenido y una referencia
- * al usuario que lo envío dentro del chat.
- * </p>
- *
+ * Cada mensaje dentro del sistema tendrá asociado un tipo, un contenido y una
+ * referencia al usuario que lo envío.
+ * 
  * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
- * @version 1.1.1
+ * @version 1.1.2
  */
-
 public class ChatMessage implements Serializable {
 	
-	/** Identificador único para serializar los mensajes del chat antes de enviarlos. */
+	/** Identificador único para serializar los mensajes antes de enviarlos. */
 	private static final long serialVersionUID = 7467237896682458959L;
 	
-	/** Tipo del mensaje dentro del chat. */
+	/** Tipo de mensaje. */
 	private MessageType messageType;
 	
-	/** Contenido del mensaje dentro del chat. */
+	/** Contenido del mensaje. */
 	private String messageContent;
 	
-	/** Referencia al usuario que envío el mensaje dentro del chat. */
-	private String userSender;
+	/** Usuario que envío el mensaje dentro del chat. */
+	private String messageSender;
 	
 	/**
-	 * Crea e inicializa un nuevo mensaje dentro del chat con una referencia al usuario
-	 * que lo envío, su tipo y su contenido.
+	 * Crea e inicializa un nuevo mensaje dentro del sistema del chat.
+	 * <p>
+	 * Inicializa el mensaje con un tipo, un contenido y una referencia al usuario
+	 * que lo envío.
+	 * </p>
 	 * 
-	 * @param userSender - Referencia al usuario que envío el mensaje dentro del chat.
-	 * @param messageType - Tipo del mensaje dentro del chat.
-	 * @param messageContent - Contenido del mensaje dentro del chat.
+	 * @param messageSender Referencia al usuario que envío el mensaje dentro del sistema del chat.
+	 * @param messageType Tipo del mensaje.
+	 * @param messageContent Contenido del mensaje.
 	 */
-	public ChatMessage(String userSender, MessageType messageType, String messageContent) {
-		this.setUserSender(userSender);
+	public ChatMessage(String messageSender, MessageType messageType, String messageContent) {
+		this.setMessageSender(messageSender);
 		this.setMessageType(messageType);
 		this.setMessageContent(messageContent);
 	}
 	
 	/**
-	 * Devuelve la referencia al usuario que envío el mensaje dentro del chat.
+	 * Devuelve la referencia al usuario que envío el mensaje dentro del sistema
+	 * del chat.
 	 * 
-	 * @return La referencia al usuario que envío el mensaje dentro del chat.
+	 * @return La referencia al usuario que envío el mensaje dentro del sistema del chat.
 	 */
-	public String getUserSender() {
-		return this.userSender;
+	public String getMessageSender() {
+		return this.messageSender;
 	}
 	
 	/**
-	 * Establece y asigna una nueva referencia al usuario que envío el mensaje.
+	 * Establece y asigna la referencia al usuario que envío el mensaje dentro del
+	 * sistema del chat.
 	 * 
-	 * @param userSender - Nueva referencia del usuario que envío el mensaje.
+	 * @param messageSender La referencia al usuario que envío el mensaje dentro del sistema del chat.
 	 */
-	public void setUserSender(String userSender) {
-		this.userSender = userSender;
+	public void setMessageSender(String messageSender) {
+		this.messageSender = messageSender;
 	}
 	
 	/**
-	 * Devuelve el tipo asociado al mensaje dentro del chat.
+	 * Devuelve el tipo del mensaje.
 	 * 
-	 * @return El tipo asociado al mensaje.
+	 * @return El tipo del mensaje.
 	 */
 	public MessageType getMessageType() {
 		return this.messageType;
 	}
 	
 	/**
-	 * Establece y asigna un nuevo tipo al mensaje dentro del chat.
+	 * Establece y asigna el tipo del mensaje.
 	 * 
-	 * @param messageType - El nuevo tipo del mensaje dentro del chat.
+	 * @param messageType El tipo del mensaje.
 	 */
 	public void setMessageType(MessageType messageType) {
 		this.messageType = messageType;
 	}
 	
 	/**
-	 * Obtiene el contenido asociado al mensaje del chat.
+	 * Devuelve el contenido del mensaje.
 	 * 
 	 * @return El contenido del mensaje.
 	 */
@@ -88,9 +91,9 @@ public class ChatMessage implements Serializable {
 	}
 	
 	/**
-	 * Establece y asigna un nuevo contenido al mensaje.
+	 * Establece y asigna el contenido del mensaje.
 	 * 
-	 * @param messageContent - El nuevo contenido del mensaje.
+	 * @param messageContent El contenido del mensaje.
 	 */
 	public void setMessageContent(String messageContent) {
 		this.messageContent = messageContent;

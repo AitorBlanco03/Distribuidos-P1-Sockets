@@ -1,310 +1,275 @@
 package es.ubu.lsi.client;
 
-// Importamos las librerías/paquetes necesarias para su ejecución.
-import java.net.Socket;
-import java.util.Scanner;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.UnknownHostException;
-import es.ubu.lsi.common.ChatMessage;
-import es.ubu.lsi.common.MessageType;
+// Importamos las librerías/paquetes necesarías para el funcionamiento de los usuarios.
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import es.ubu.lsi.common.*;
+import java.text.SimpleDateFormat;
 
 /**
- * Cliente de chat que permite a un usuario conectarse a un servidor, enviar
- * mensajes y recibir mensajes en tiempo real.
+ * Cliente de chat que permite a un usuario conectarse a un servidor, enviar y recibir
+ * mensajes en tiempo real.
  * <p>
- * Se encarga de gestionar la comunicación con el servidor, el envío de mensajes
- * y la recepción de respuestas, asegurando una comunicación fluida y eficiente con 
- * el servidor.
+ * Se encarga de gestionar la comunicación con el servidor, el envío y la recepción de
+ * mensajes, asegurando una comunicación fluida y eficiente con el servidor.
  * </p>
  * 
  * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
- * @version 1.3.0
+ * @version 1.3.1
  */
-
 public class ChatClient implements IChatClient {
 	
-	/** Dirección IP/Nombre del servidor al que se conectará el cliente. */
-	private String serverAddress;
+	/** Dirección IP o Nombre del servidor al que se conectará el usuario. */
+	private String serverHost;
 	
-	/** Nickname/Nombre del usuario dentro del chat. */
-	private String userName;
+	/** Nombre del usuario dentro del sistema. */
+	private String username;
 	
-	/** Puerto en el que el servidor está escuchando sus conexiones. */
+	/** Puerto del servidor donde estará escuchando las conexiones entrantes. */
 	private int serverPort;
 	
-	/** Flag para controlar/gestionar la comunicación con el servidor. */
-	private boolean isRunning;
+	/** Flag para controlar y gestionar la comunicación con el servidor. */
+	private boolean isConnected;
 	
-	/** Socket para controlar/gestionar la comunicación con el servidor. */
-	private Socket serverConnection;
+	/** Socket para gestionar la comunicación del usuario con el servidor. */
+	private Socket socketConnection;
 	
-	/** Flujo de entrada para recibir los mensajes del servidor. */
-	private ObjectInputStream receiverMessages;
+	/** Flujo de entrada para recibir los nuevos mensajes provenientes del servidor. */
+	private ObjectInputStream inputMessage;
 	
 	/** Flujo de salida para enviar los mensajes al servidor. */
-	private ObjectOutputStream senderMessages;
+	private ObjectOutputStream outputMessage;
 	
-	/** Scanner para leer los mensajes ingresados por el usuario. */
+	/** Scanner para leer los mensajes de los usuarios ingresados desde la consola. */
 	private Scanner messageReader;
 	
 	/**
-	 * Constructor de clase.
-	 * <p>
-	 * Inicializa un nuevo cliente dentro del sistema, estableciendo la dirección IP o el
-	 * nombre del servidor, junto con el puerto al que se intentará conectar y el nickname que
-	 * indentificará al usuario.
-	 * </p>
+	 * Constructor de la clase ChatClient.
 	 * 
-	 * @param serverAddress - Dirección IP o Nombre del servidor al que se realizará la conexión.
-	 * @param serverPort - Puerto en el que el servidor estará escuchando las conexiones entrantes.
-	 * @param userName - Nombre o Nickname que identificará al usuario dentro del sistema.
+	 * @param serverHost Dirección IP o Nombre del servidor al que el usuario quiere conectarse.
+	 * @param serverPort Puerto del servidor donde estará escuchando las conexiones entrantes.
+	 * @param username Nombre del usuario dentro del sistema.
 	 */
-	public ChatClient(String serverAddress, int serverPort, String userName) {
-		// Inicializamos la información del servidor que el usuario desea conectarse.
-		this.serverAddress = serverAddress;
+	public ChatClient(String serverHost, int serverPort, String username) {
+		this.serverHost = serverHost;
 		this.serverPort = serverPort;
-		// Inicializamos la información del usuario dentro del sistema.
-		this.userName = userName;
-		// Inicializamos el scanner para leer los mensajes ingresados por el usuario.
+		this.username = username;
 		this.messageReader = new Scanner(System.in);
-		// Inicialmente el usuario creado no estará conectado al chat.
-		this.isRunning = false;
+		this.isConnected = false;
 	}
 	
 	/**
-	 * Inicializa y establece la conexión con el servidor.
-	 * <p>
-	 * Crea e inicializa un socket para comunicarse con el servidor y configura los
-	 * diferentes flujos de entrada y salida para enviar y recibir mensajes.
-	 * </p>
+	 * Establece conexión con el servidor del sistema.
 	 * 
-	 * @return true si la conexión con el servidor fue exitosa, false si ocurrió algún error.
+	 * @return true si la conexión se realizó con éxito, false en caso contrario.
 	 */
 	@Override
 	public boolean connect() {
 		try {
-			// Intentamos establecer conexión con el servidor usa su puerto y dirección.
-			serverConnection = new Socket(serverAddress, serverPort);
-			// Inicializamos los flujos de entrada y salida para recibir y enviar mensajes.
-			receiverMessages = new ObjectInputStream(serverConnection.getInputStream());
-			senderMessages = new ObjectOutputStream(serverConnection.getOutputStream());
-			// Informamos al usuario que se ha conectado correctamente con el servidor.
-			System.out.println("[SYSTEM]: ¡Bienvenido! Se ha establecido la conexión con el servidor.");
-			System.out.println("[SERVER]: Preparando su sesión...");
-			// Una vez conectado con el servidor, el usuario está conectado al chat.
-			isRunning = true;
+			// Intentamos establecer conexión e inicializamos los recursos para comunicarse con el servidor.
+			socketConnection = new Socket(serverHost, serverPort);
+			inputMessage = new ObjectInputStream(socketConnection.getInputStream());
+			outputMessage = new ObjectOutputStream(socketConnection.getOutputStream());
+			
+			System.out.println("[" + getCurrentTime() + "][SYSTEM]: ¡Bienvenido! Se ha establecido la conexión con el servidor.");
+			System.out.println("[" + getCurrentTime() + "][SERVER]: Preparando su sesión...");
+			isConnected = true;
+			
 			// Inicializamos los hilos para enviar y recibir mensajes al servidor.
-			new Thread(new UserInputHandler()).start();
-			new Thread(new ServerListenerThread()).start();
-			// Devolvemos un True, ya que la conexión se ha establecido correctamente.
+			new Thread(new ChatMessageSender()).start();
+			new Thread(new ChatMessageReceiver()).start();
 			return true;
 		} catch (UnknownHostException e) {
-			System.err.println("[ERROR]: Servidor no encontrado: " + e.getMessage());
+			System.err.println("[" + getCurrentTime() + "][ERROR]: Abortando conexión. Servidor no encontrado: " + e.getMessage());
 		} catch (IOException e) {
-			System.err.println("[ERROR]: Error al conectarse con el servidor: " + e.getMessage());
+			System.err.println("[" + getCurrentTime() + "][ERROR]: Error al conectarse con el servidor: " + e.getMessage());
 		}
-		// Si ocurre algún error durante la conexión con el servidor, devolvemos un False.
+		// Si ocurre algún error durante la conexión, interpretaremos que la conexión ha fallado.
 		return false;
 	}
 	
 	/**
-	 * Envía un mensaje al servidor del chat.
-	 * 
-	 * @param msg - Mensaje del usuario que se envía al servidor del chat.
-	 */
-	@Override
-	public void sendMessage(ChatMessage msg) {
-		try {
-			// Comprobamos la conexión con el chat antes de mandar el mensaje.
-			if (senderMessages != null && isRunning) {
-				// Envíamos el mensaje del usuario al servidor del chat.
-				senderMessages.writeObject(msg);
-				senderMessages.flush();
-			}
-		} catch (IOException e) {
-			System.err.println("[ERROR]: Error al enviar el mensaje: " + e.getMessage());
-		}
-	}
-	
-	/**
-	 * Desconecta al usuario del chat y del servidor de forma segura.
-	 * <p>
-	 * Cierra de forma segura todos los recursos utilizados durante la
-	 * comunicación.
-	 * </p>
+	 * Finaliza la conexión con el servidor de forma segura cerrando todos los
+	 * recursos utilizados durante su sesión.
 	 */
 	@Override
 	public void disconnect() {
 		try {
-			// Enviamos un mensaje de LOGOUT al servidor
-	        if (senderMessages != null && isRunning) {
-	            ChatMessage logoutMessage = new ChatMessage(userName, MessageType.LOGOUT, "");
-	            sendMessage(logoutMessage);
-	        }
-			// Cerramos de forma segura los flujos de entrada y salida de mensajes.
-			if (receiverMessages != null) receiverMessages.close();
-			if (senderMessages != null) senderMessages.close();
-			// Cerramos de forma segura el scanner para leer los mensajes del usuario.
+			System.out.println("[" + getCurrentTime() + "][SERVER]: Cerrando su sesión...");
+			// Antes de desconectar al usuario, avisamos al servidor para evitar posibles problemas.
+			if (outputMessage != null && isConnected) {
+				ChatMessage logoutMessage = new ChatMessage(username, MessageType.LOGOUT, "");
+				sendMessage(logoutMessage);
+			}
+			
+			// Intentamos cerrar de forma segura todos los recursos utilizados durante su sesión.
+			if (inputMessage != null) inputMessage.close();
+			if (outputMessage != null) outputMessage.close();
 			if (messageReader != null) messageReader.close();
-			// Cerramos de forma segura la conexión con el chat y el servidor.
-			if (serverConnection != null) serverConnection.close();
-			// Informamos que se ha desconectado de forma segura del chat y servidor.
-			System.out.println("[SYSTEM]: Desconectado del chat y del servidor con éxito.");
+			if (socketConnection != null) socketConnection.close();
+			
+			System.out.println("[" + getCurrentTime() + "][SYSTEM]: ¡Adios! Se ha cerrado conexión correctamente con el servidor.");
 		} catch (IOException e) {
-			System.err.println("[ERROR]: Error al cerrar la conexión: " + e.getMessage());
+			System.err.println("[" + getCurrentTime() + "][ERROR]: Error al cerrar la conexión: " + e.getMessage());
 		} finally {
-			// Nos aseguramos de cerrar los hilos de ejecución y el chat.
-			isRunning = false;
+			// Nos aseguramos de cerrar la conexión con el servidor independiente que haya o no ocurrido algún error.
+			isConnected = false;
 		}
 	}
 	
-	
-	
 	/**
-	 * Hilo encargado de gestionar la entrada del usuario desde la consola.
-	 * <p>
-	 * Este hilo se encarga de leer los mensajes que el usuario escribe y los procesa
-	 * para enviarlos al servidor.
-	 * </p>
+	 * Envía un mensaje al servidor del sistema.
 	 * 
-	 * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
-	 * @version 1.0.0
+	 * @param msg Mensaje que se desea enviar al servidor del sistema.
 	 */
-	private class UserInputHandler implements Runnable {
-		
-		/**
-		 * Ejecuta el hilo que escucha y procesa la entrada del usuario.
-		 * <p>
-		 * Mientras que la conexión con el servidor y el chat esté activa, el hilo
-		 * lee los mensajes que el usuario escribe en la consola y los procesa para
-		 * enviarlos al servidor.
-		 * </p>
-		 */
-		@Override
-		public void run() {
-			// Mantenemos activo el hilo mientras que el cliente este conectado.
-			while (isRunning) {
-				if (messageReader.hasNextLine()) {
-					// Leemos y procesamos la entrada del usuario antes de mandarla al servidor.
-					String userInput = messageReader.nextLine();
-					processUserInput(userInput);
-				}
+	@Override
+	public void sendMessage(ChatMessage msg) {
+		try {
+			// Comprobamos la conexión con el servidor este activa antes de mandar el mensaje.
+			if (outputMessage != null && isConnected) {
+				// Envíamos el mensaje del usuario al servidor del sistema.
+				outputMessage.writeObject(msg);
+				outputMessage.flush();
 			}
+		} catch (IOException e) {
+			System.err.println("[" + getCurrentTime() + "][ERROR]: Error al enviar el mensaje al servidor: " + e.getMessage());
 		}
-		
-		/**
-		 * Procesa la entrada del usuario desde consola antes de mandarla
-		 * al servidor.
-		 * 
-		 * @param userInput - Entrada del usuario desde consola.
-		 */
-		private void processUserInput(String userInput) {
-			// Convertimos la entrada del usuario, para ignorar las posibles mayúsculas.
-			String lowerCaseInput = userInput.toLowerCase();
-			/*
-			 * Miramos si el usuario escribe "logout", si es así desconectaremos 
-			 * al usuario del chat y del servidor.
-			 */
-			if (lowerCaseInput.equals("logout")) disconnect();
-			/*
-			 * Miramos si el usuario escribe "ban [usuario]" y desea bloquear
-			 * a otro usuario.
-			 */
-			else if (lowerCaseInput.startsWith("ban ")) {
-				// Extraemos el usuario que se desea bloquear.
-				String userToBan = userInput.substring(4).trim().toLowerCase();
-				// Comprobamos que el usuario a bloquear no esté vacío.
-				if (!userToBan.isEmpty()) {
-					banUser(userToBan);
-				} else {
-					System.err.println("[ERROR]: Se debe especificar un usuario para bloquear.");
-				}
-			}
-			/*
-			 * Miramos si el usuario escribe "unban [usuario]" y desea desbloquear
-			 * a otro usuario.
-			 */
-			else if (lowerCaseInput.startsWith("unban ")) {
-				// Extraemos el ususario que se desea desbloquear.
-				String userToUnban = userInput.substring(6).trim().toLowerCase();
-				// Comprobamos que el usuario a desbloquear no esté vacío.
-				if (!userToUnban.isEmpty()) {
-					unbanUser(userToUnban);
-				} else {
-					System.err.println("[ERROR]: Se debe especificar un usuario para desbloquear.");
-				}
-			}
-			// Si no es ninguno de los casos anteriores, entonces lo trataremos como un simple mensaje.
-			else {
-				ChatMessage msg = new ChatMessage(userName, MessageType.MESSAGE, userInput);
-				sendMessage(msg);
-			}
-		}
-		
-		/**
-		 * Informa al servidor que un usuario desea bloquear a otro usuario para
-		 * dejar de recibir sus mensajes dentro del chat.
-		 * 
-		 * @param userToBan - Nombre o Nickname que el usuario desea bloquear.
-		 */
-		private void banUser(String userToBan) {
-	        // Creamos el mensaje de tipo BAN con el nombre del usuario a bloquear.
-	        ChatMessage banMsg = new ChatMessage(userName, MessageType.BAN, userToBan);
-	        
-	        // Enviamos el mensaje de bloqueo al servidor.
-	        sendMessage(banMsg);
-	    }
-		
-		/**
-		 * Informa al servidor que un usuario desea desbloquear a otro usuario
-		 * para volver a recibir sus mensajes dentro del chat.
-		 * 
-		 * @param userToUnban - Nombre o Nickname que el usuario desea bloquear.
-		 */
-		private void unbanUser(String userToUnban) {
-	        // Creamos el mensaje de tipo UNBAN con el nombre del usuario a desbloquear.
-	        ChatMessage unbanMsg = new ChatMessage(userName, MessageType.UNBAN, userToUnban);
-	        
-	        // Enviamos el mensaje de desbloqueo al servidor.
-	        sendMessage(unbanMsg);
-	    }
 	}
 	
 	/**
-	 * Hilo que se encarga de escuchar y mostrar los mensajes entrantes del servidor.
-	 * <p>
-	 * Este hilo se encarga de escuchar los mensajes del servidor y mostrarlo
-	 * a medida de que estos van llegando.
-	 * </p>
+	 * Obtiene la hora actual del sistema.
+	 * 
+	 * @return La hora actual del sistema.
+	 */
+	public static String getCurrentTime() {
+		// Formateamos la hora del sistema mostrando horas, minutos y segundos.
+		SimpleDateFormat currentTime = new SimpleDateFormat("HH:mm:ss");
+		// Devolvemos la hora del sistema.
+		return currentTime.format(new Date());
+	}
+	
+	/**
+	 * Hilo responsable de leer los mensajes del usuario desde la consola, procesarlos y
+	 * luego posteriormente enviarlos al servidor del sistema.
 	 * 
 	 * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
 	 * @version 1.1.0
 	 */
-	private class ServerListenerThread implements Runnable {
+	private class ChatMessageSender implements Runnable {
 		
 		/**
-		 * Ejecuta el hilo que escucha y muestra los mensajes entrantes del servidor.
-		 * <p>
-		 * Mientras que la conexión con el servidor y el chat esté activa, el hilo
-		 * escucha los mensajes del servidor y mostrarlo a medida de que estos van llegando.
-		 * </p>
+		 * Ejecuta el hilo, y se encarga de leer y procesar los mensajes del usuario desde
+		 * consola y enviarlos al servidor.
 		 */
 		@Override
 		public void run() {
-			// Mantenemos activo el hilo mientras que el cliente este conectado.
-			while (isRunning) {
+			// Mantenemos activo el hilo mientras que el usuario esté conectado al servidor.
+			while (isConnected) {
+				if (messageReader.hasNextLine()) {
+					
+					// Leemos y procesamos el mensaje del usuario antes de enviarlo al servidor.
+					String userMessage = messageReader.nextLine();
+					processUserMessage(userMessage);
+				}
+			}
+		}
+		
+		/**
+		 * Procesa el mensaje del usuario desde la consola antes de enviarlo al
+		 * servidor del sistema.
+		 */
+		private void processUserMessage(String userMessage) {
+			// Primero pasamos el mensaje a mínusculas para ignorar posibles mayúsculas dentro del mensaje.
+			String lowerCaseMessage = userMessage.trim().toLowerCase();
+			
+			// Si el mensaje es "logout", desconectamos al usuario del servidor del sistema.
+			if ("logout".equals(lowerCaseMessage)) disconnect();
+			
+			// Si el mensaje empieza con el comando "ban", procesamos el mensaje para obtener el usuario a bloquear.
+			else if (lowerCaseMessage.startsWith("ban")) {
+				if (lowerCaseMessage.equalsIgnoreCase("ban")) {
+					System.err.println("[" + getCurrentTime() + "][ERROR]: Debes especificar el usuario a bloquear.");
+				} else if (!lowerCaseMessage.startsWith("ban ")) {
+					sendMessage(new ChatMessage(username, MessageType.MESSAGE, userMessage));
+				} else {
+					processBanCommand(userMessage.substring(4).trim());
+				}
+			}
+			
+			// Si el mensaje empieza con el comando "unban", procesamos el mensaje para obtener el usuario a desbloquear.
+			else if (lowerCaseMessage.startsWith("unban")) {
+				if (lowerCaseMessage.equalsIgnoreCase("unban")) {
+					System.err.println("[" + getCurrentTime() + "][ERROR]: Debes especificar el usuario a desbloquear.");
+				} else if (!lowerCaseMessage.startsWith("unban ")) {
+					sendMessage(new ChatMessage(username, MessageType.MESSAGE, userMessage));
+				} else {
+					processUnbanCommand(userMessage.substring(6).trim());
+				}
+			}
+			
+			// Cualquier otro mensaje, se enviará directamente al servidor del sistema.
+			else sendMessage(new ChatMessage(username, MessageType.MESSAGE, userMessage));
+		}
+		
+		/**
+		 * Procesa el mensaje de bloqueo para obtener el usuario a bloquear.
+		 * 
+		 * @param userToBan Usuario que se desea bloquear.
+		 */
+		private void processBanCommand(String userToBan) {
+			// Si el usuario a bloquear es el propio usuario, mandamos un mensaje de error.
+			if (userToBan.equalsIgnoreCase(username)) {
+				System.err.println("[" + getCurrentTime() + "][ERROR]: No puedes bloquearte a ti mismo.");
+			}
+			
+			// Si es otro usuario, lo enviamos al servidor del sistema.
+			else sendMessage(new ChatMessage(username, MessageType.BAN, userToBan));
+		}
+		
+		/**
+		 * Procesa el mensaje de desbloqueo para obtener el usuario a desbloquear.
+		 * 
+		 * @param userToUnban Usuario que se desea desbloquear.
+		 */
+		private void processUnbanCommand(String userToUnban) {
+			// Si el usuario a bloquear es el propio usuario, mandamos un mensaje de error.
+			if (userToUnban.equalsIgnoreCase(username)) {
+				System.err.println("[" + getCurrentTime() + "][ERROR]: No puedes desbloquearte a ti mismo.");
+			}
+			
+			// Si es otro usuario, lo envíamos al servidor del sistema.
+			else sendMessage(new ChatMessage(username, MessageType.UNBAN, userToUnban));
+		}
+	}
+	
+	/**
+	 * Hilo que se encarga de escuchar y recibir los mensajes del servidor y mostrarlos a medida
+	 * que estos van llegando.
+	 * 
+	 * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
+	 * @version 1.1.1
+	 */
+	private class ChatMessageReceiver implements Runnable {
+		
+		/**
+		 * Ejecuta el hilo que se encarga de escuchar y recibir los mensajes así como
+		 * mostrarlos a medida que estos van llegando.
+		 */
+		@Override
+		public void run() {
+			// Mantenemos activo este hilo mientras que el usuario este conectado al servidor.
+			while (isConnected) {
 				try {
-					// Intentamos recibir el mensaje del servidor.
-					ChatMessage receivedMessage = (ChatMessage) receiverMessages.readObject();
-					if (receivedMessage != null) {
-						// Mostramos por pantalla el mensaje recibido del usuario.
-						System.out.println("\n[" + receivedMessage.getUserSender().toUpperCase() + "]: " 
-						 + receivedMessage.getMessageContent());
+					// Intentamos recibir el mensaje recibido del servidor.
+					ChatMessage newMessage = (ChatMessage) inputMessage.readObject();
+					if (newMessage != null) {
+						// Mostramos por pantalla el mensaje recibido del servidor del sistema.
+						System.out.println("[" + getCurrentTime() + "][" + newMessage.getMessageSender().toUpperCase() + "]: " 
+								 + newMessage.getMessageContent());
 					}
 				} catch (IOException | ClassNotFoundException e) {
-					System.err.println("[ERROR]: Error al recibir mensaje del servidor: " + e.getMessage());
+					System.err.println("[" + getCurrentTime() + "][ERROR]: Error al recibir mensaje del servidor: " + e.getMessage());
 				}
 			}
 		}
@@ -325,7 +290,7 @@ public class ChatClient implements IChatClient {
 	 *			<li>El segundo es el nickname del usuario.</li>
 	 *		</ul>
 	 *	</li>
-	 *<ul>
+	 *</ul>
 	 */
 	public static void main(String[] args) {
 		// Definimos los valores por defecto para la conexión con el servidor.
@@ -333,7 +298,7 @@ public class ChatClient implements IChatClient {
 		final int DEFAULT_SERVER_PORT = 1500;
 		// Comprobamos la cantidad de argumentos ingresados a través de la línea de comandos.
 		if (args.length < 1 || args.length > 2) {
-			System.err.println("[ERROR]: Uso incorrecto. Formato esperado:\n"
+			System.err.println("[" + getCurrentTime() + "][ERROR]: Uso incorrecto. Formato esperado:\n"
 					+ "\t- 1 Argumento -> Nickname del usuario.\n"
 					+ "\t- 2 Argumentos -> Dirección del servidor y nickname del usuario.");
 			System.exit(1);
@@ -345,12 +310,12 @@ public class ChatClient implements IChatClient {
 		ChatClient newUser = new ChatClient(serverAddress, DEFAULT_SERVER_PORT, userName);
 		// Intentamos conectar el usuario al servidor correspondiente.
 		if (newUser.connect()) {
-			System.out.println("[SYSTEM]: Conexión establecida. ¡Estás listo para comenzar a chatear!");
+			System.out.println("[" + getCurrentTime() + "][SYSTEM]: Conexión establecida. ¡Estás listo para comenzar a chatear!");
 			// Enviamos al servidor el username del usuario para iniciar la comunicación.
-			ChatMessage loginMessage = new ChatMessage(userName, MessageType.MESSAGE, "");
+			ChatMessage loginMessage = new ChatMessage(userName, MessageType.LOGIN, "");
             newUser.sendMessage(loginMessage);
 		} else {
-			System.err.println("[SYSTEM]: Saliendo del sistema...");
+			System.err.println("[" + getCurrentTime() + "][SYSTEM]: Saliendo del sistema...");
 			System.exit(1);
 		}
 	}

@@ -1,28 +1,44 @@
 package es.ubu.lsi.common;
 
 /**
- * Enum que define los diferentes tipos de mensajes que pueden 
- * llegar a enviarse dentro del chat.
- * 
+ * Enum que define los diferentes tipos de mensajes/comandos que pueden
+ * enviarse dentro del sistema de chat.
+ *
  * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
- * @version 1.1.0
+ * @version 1.2.0
  */
-
 public enum MessageType {
 	
-	/** Mensaje normal/estándar que envía un usuario dentro del chat. */
+	/**
+	 * Mensaje que un usuario envía al servidor o viceversa. Es el mensaje
+	 * más común dentro del chat.
+	 */
 	MESSAGE,
 	
-	/** Mensaje de usuario para bloquear los mensajes de otro usuario. */
+	/**
+	 * Mensaje que un usuario envía para avisar que ha bloqueado a otro usuario del 
+	 * sistema, impidiendo que este último pueda interactuar con él dentro del chat.
+	 */
 	BAN,
 	
-	/** Mensaje de usuario para volver a recibir mensajes de un usuario bloqueado. */
+	/**
+	 * Mensaje que un usuario envía para avisar que ha desbloqueado a otro usuario del
+	 * sistema, permitiendo que este último pueda volver a interactuar con él dentro del chat.
+	 */
 	UNBAN,
 	
-	/** Mensaje de usuario para desconectarse del chat. */
+	/**
+	 * Mensaje que un usuario envía al servidor para conectarse al sistema del chat.
+	 */
+	LOGIN,
+	
+	/**
+	 * Mensaje que un usuario envía al servidor para desconectarse del sistema del chat.
+	 */
 	LOGOUT,
 	
-	/** Mensaje del sistema para notificar y apagar el servidor. */
+	/**
+	 * Mensaje que envía al servidor a los usuarios para avisar de su inminente apagado.
+	 */
 	SHUTDOWN
-	
 }
