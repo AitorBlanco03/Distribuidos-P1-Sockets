@@ -5,5 +5,6 @@ es\ubu\lsi\common\ChatMessage.class
 es\ubu\lsi\server\ChatServer$UserSession.class
 es\ubu\lsi\common\MessageType.class
 es\ubu\lsi\server\IChatServer.class
+es\ubu\lsi\server\ChatServer$1.class
 es\ubu\lsi\client\ChatClient$ChatMessageSender.class
 es\ubu\lsi\client\ChatClient$ChatMessageReceiver.class
