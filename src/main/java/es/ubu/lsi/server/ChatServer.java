@@ -107,9 +107,11 @@ public class ChatServer implements IChatServer {
 		// que han bloqueado al remitente del mensaje.
 		synchronized (connectedUsers) {
 			for (UserSession user : connectedUsers) {
-				if (!isBlocked(msg.getMessageSender(), user.getUsername())) {
-					user.sendMessage(msg);
-				}
+				boolean blocked = isBlocked(msg.getMessageSender(), user.getUsername());
+				System.out.println("¿Está bloqueado? " + blocked + " (Remitente: " + msg.getMessageSender() + ", Receptor: " + user.getUsername() + ")");
+	            if (!blocked) {
+	                user.sendMessage(msg);
+	            }
 			}
 		}
 	}
@@ -158,16 +160,7 @@ public class ChatServer implements IChatServer {
 	 * @return true si el receptor ha bloqueado al remitente, false en caso contrario.
 	 */
 	private boolean isBlocked(String userSender, String userReceiver) {
-		// Obtenemos la lista de bloqueos del usuario que recibiría el mensaje.
-		HashSet<String> receiverBlockedList = blockedUsers.get(userReceiver);
-		// Si el receptor no tiene bloqueos, entonces no le tiene bloqueado.
-		if (receiverBlockedList == null) return false;
-		// Si el receptor tiene bloqueos, comprobamos que no le tiene bloqueado.
-		for (String userBlocked : receiverBlockedList) {
-			if (userBlocked.equals(userSender)) return true;
-		}
-		// Si el remitente no se encuentre entre sus bloqueos, entonces no esta bloqueado.
-		return false;
+		return blockedUsers.getOrDefault(userReceiver, new HashSet<>()).contains(userSender);
 	}
 	
 	/**
@@ -302,9 +295,11 @@ public class ChatServer implements IChatServer {
 			// Registramos el bloqueo del usuario dentro del servidor y sistema.
 			synchronized (blockedUsers) {
 				HashSet<String> userBlockList = blockedUsers.get(username);
-				if (userBlockList != null) {
-		            userBlockList.add(userToBlock);
-		        }
+				if (userBlockList == null) {
+			        userBlockList = new HashSet<>();  // Inicializa la lista si no existe
+			        blockedUsers.put(username, userBlockList);
+			    }
+				userBlockList.add(userToBlock);
 			}
 			// Informamos a todos los usuarios conectados sobre el bloqueo realizado.
 			System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha bloqueado a " + userToBlock + ".");
@@ -327,6 +322,9 @@ public class ChatServer implements IChatServer {
 		        HashSet<String> userBlockList = blockedUsers.get(username);
 		        if (userBlockList != null) {
 		        	userBlockList.remove(userToUnblock);
+		        	if (userBlockList.isEmpty()) {
+		                blockedUsers.remove(username);
+		            }
 		        }
 		    }
 			// Informamos a todos los usuarios conetctados sobre el desbloqueo realizado.
