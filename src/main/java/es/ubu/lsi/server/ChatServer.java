@@ -1,38 +1,46 @@
 package es.ubu.lsi.server;
 
-// Importamos las librerías/paquetes para el funcionamiento del servidor.
 import java.io.*;
 import java.net.*;
 import java.util.*;
 import es.ubu.lsi.common.*;
 import java.text.SimpleDateFormat;
+import java.util.concurrent.locks.*;
 
 /**
- * Servidor del chat que gestiona las conexiones de los usuarios y el reenvío
- * de mensajes, permitiendo además a los usuarios bloquear a otros para dejar
- * de recibir sus mensajes.
+ * Servidor del chat que gestiona las conexiones de los usuarios y el
+ * reenvío de mensajes, permitiendo además a los usuarios bloquear a
+ * otros usuarios.
  *
  * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
- * @version 1.3.0
+ * @version 1.4.0
  */
 public class ChatServer implements IChatServer {
 	
-	/** Puerto del servidor encargado de escuchar y aceptar las nuevas conexiones entrantes. */
+	/** Puerto del servidor encargado de escuchar y aceptar las conexiones entrantes. */
 	private int serverPort;
 	
-	/** Lista interna para almacenar y gestionar los diferentes usuarios conectados al servidor. */
+	/** Registro para almacenar y gestionar los diferentes usuarios conectados al servidor. */
 	private final List<UserSession> connectedUsers;
 	
-	/** Tabla interna para almacenar y gestionar los usuarios bloqueados por cada usuario conectado. */
+	/** Registro para almacenar y gestionar los bloqueos de cada uno de los usuarios conectados. */
 	private final Map<String, HashSet<String>> blockedUsers;
 	
 	/** Flag para controlar y gestionar el estado del servidor. */
 	private boolean isRunning;
 	
+	/** Locks para controlar el acceso de los recusos compartidos del servidor. */
+	private final ReadWriteLock systemLock = new ReentrantReadWriteLock();
+	private final Lock readLock = systemLock.readLock();
+	private final Lock writeLock = systemLock.writeLock();
+	
 	/**
 	 * Constructor de la clase ChatServer.
+	 * <p>
+	 * Se encarga de crear e inicializar una instancia del servidor del chat.
+	 * </p>
 	 * 
-	 * @param serverPort Puerto del servidor encargado de escuchar y aceptar las nuevas conexiones entrantes.
+	 * @param serverPort Puerto del servidor encargado de escuchar y aceptar nuevas conexiones entrantes.
 	 */
 	public ChatServer(int serverPort) {
 		this.serverPort = serverPort;
@@ -42,23 +50,23 @@ public class ChatServer implements IChatServer {
 	}
 	
 	/**
-	 * Inicia el servidor y, escuchar y aceptar conexiones de nuevos usuarios.
+	 * Inicia el servidor y comienza a escuchar y aceptar las nuevas conexiones entrantes.
 	 * <p>
-	 * El servidor comienza a escuchar conexiones entrantes en el puerto correspondiente.
-	 * Por cada nueva conexión aceptada, se crea una sesión de usuario y se lanza un hilo para gestionarla.
-	 * Este proceso se repite continuamente mientras que el servidor se encuentre en ejecución.
+	 * El servidor comienza a escuchar y aceptar las nuevas conexiones entrantes del servidor.
+	 * Por cada nueva conexión acepta, se crea una nueva sesión para gestionar su comunicación de manera independiente.
+	 * Este proceso se repite indefinidamente siempre y cuando el servidor se encuentre activo.
 	 * </p>
 	 */
 	@Override
 	public void startServer() {
-		// Intentamos iniciar el servidor en el puerto correspondiente.
+		// Intentamos iniciar el servidor del chat y su puerto para empezar a escuchar las nuevas conexiones entrantes.
 		try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
 			isRunning = true;
 			System.out.println("[" + getCurrentTime() + "][SERVER]: Servidor iniciado en el puerto " + serverPort);
 			
-			// Mientras que el servidor este en ejecución, escuchamos y aceptamos nuevas conexiones entrantes.
+			// Mientras que el usuario este activo, escucha y acepta las nuevas conexiones entrantes.
 			while(isRunning) {
-				// Aceptamos las nuevas conexiones, creamos una sesión y la gestionamos en un hilo independiente.
+				// Para cada conexiones aceptada, creamos una nueva sesión para gestionar la de manera independiente.
 				Socket userSocket = serverSocket.accept();
 				UserSession newUser = new UserSession(userSocket);
 				addUser(newUser);
@@ -70,97 +78,111 @@ public class ChatServer implements IChatServer {
 	}
 	
 	/**
-	 * Detiene el servidor, dejando de aceptar nuevas conexiones entrante y cerrando todas las
-	 * comunicaciones abiertas. Además, se encarga de cerrar correctamente todos los recursos
-	 * utilizados para las comunicaciones y conexiones con los usuarios.
+	 * Detiene el servidor y deja de escuchar y aceptar las nuevas conexiones entrantes.
+	 * <p>
+	 * Deja de escuchar y aceptar nuevas conexiones entrantes, y también se encarga de
+	 * cerrar todos los recursos utilizados para las sesiones y comunicaciones con los
+	 * usuarios.
+	 * </p>
 	 */
 	@Override
 	public void shutdownServer() {
-		// Detenemos el servidor para dejar de aceptar nuevas conexiones entrantes.
+		// Detenemos el servidor para dejar de escuchar y aceptar nuevas conexiones entrantes.
 		isRunning = false;
 		
-		// Cerramos de forma segura todas las comunicaciones abiertas.
-		synchronized (connectedUsers) {
+		// Obtenemos el bloqueo de escritura para liberar todos los recursos del servidor.
+		writeLock.lock();
+		try {
+			// Cerramos todos los recursos utilizados para las sesiones y comunicaciones con los usuarios.
 			for (UserSession user : connectedUsers) {
 				user.closeConnection();
 			}
 			connectedUsers.clear();
-		}
-		
-		// Eliminamos todos los bloqueos de los usuarios al detener el servidor.
-		synchronized (blockedUsers) {
 			blockedUsers.clear();
+		} finally {
+			// Finalmente liberamos el bloqueo de escritura utilizado.
+			writeLock.unlock();
 		}
-		
-		System.out.println("[" + getCurrentTime() + "][SERVER]: Servidor detenido y apagado");
 	}
 	
 	/**
-	 * Reenvía el mensaje recibido a todos los usuarios conectados, excepto a aquellos que han
-	 * bloqueado al remitente del mensaje.
+	 * Reenvía un mensaje recibido a todos los usuarios conectados, excepto a aquellos usuarios que
+	 * tienen o han bloqueado el remitente del mensaje.
 	 * 
-	 * @param msg Mensaje recibido que se desea reenviar.
+	 * @param msg Mensaje recibido que se desea reenviar dentro del sistema.
 	 */
 	@Override
 	public void sendBroadcastMessage(ChatMessage msg) {
-		// Reenvíamos el mensaje recibido a todos los usuarios conectados, excepto a aquellos
-		// que han bloqueado al remitente del mensaje.
-		synchronized (connectedUsers) {
+		// Obtenemos el bloqueo de lectura para leer todos los usuarios conectados al sistema.
+		readLock.lock();
+		try {
+			// Reenvíamos el mensajes para todos menos aquellos que tiene bloqueado el remitente.
 			for (UserSession user : connectedUsers) {
-				boolean blocked = isBlocked(msg.getMessageSender(), user.getUsername());
-				System.out.println("¿Está bloqueado? " + blocked + " (Remitente: " + msg.getMessageSender() + ", Receptor: " + user.getUsername() + ")");
-	            if (!blocked) {
-	                user.sendMessage(msg);
-	            }
+				if (!isBlocked(msg.getMessageSender(), user.getUsername())) {
+					user.sendMessage(msg);
+				}
 			}
+		} finally {
+			// Finalmente liberamos el bloqueo de lectura utilizado.
+			readLock.unlock();
 		}
 	}
 	
 	/**
-	 * Añade la conexión con el usuario al sistema y actualiza la lista de usuarios
-	 * conectados y la tabla de bloqueos del servidor.
+	 * Añade un nuevo usuario al sistema, actualizando los registros para añadir la
+	 * información del usuario dentro del sistema.
 	 * 
-	 * @param newUser Nuevo usuario que se conectó al servidor.
+	 * @param newUser Nuevo usuario al sistema que se desea añadir.
 	 */
 	public void addUser(UserSession newUser) {
-		// Actualizamos la lista de usuarios conectados al servidor, agregandolé en el proceso.
-		synchronized (connectedUsers) {
+		// Obtenemos el bloqueo de escritura para añadir nueva información al sistema.
+		writeLock.lock();
+		try {
+			// Añadimos la información del nuevo usuario dentro del sistema.
 			connectedUsers.add(newUser);
-		}
-		
-		// Actualizamos la tabla de bloqueos, agregandole un nuevo campo para gestionar sus bloqueos.
-		synchronized (blockedUsers) {
 			blockedUsers.put(newUser.getUsername(), new HashSet<>());
+		} finally {
+			// Finalmente liberamos el bloqueo de escritura utilizado.
+			writeLock.unlock();
 		}
 	}
 	
 	/**
-	 * Elimina la conexión con el usuario del sistema y lo elimina de la lista de usuarios
-	 * conectados y de la lista de bloqueos del servidor.
+	 * Elimina un usuario del sistema, actualizando los registros para eliminar la
+	 * información que se desconectó del sistema.
 	 * 
-	 * @param user Usuario que se desconectó del servidor.
+	 * @param user Usuario que se desconectó del sistema.
 	 */
 	public void removeUser(UserSession user) {
-		// Actualizamos la lista de usuarios conectados del servidor, eliminandolé en el proceso.
-		synchronized (connectedUsers) {
+		// Obtenemos el bloqueo de escritura para eliminar información del sistema.
+		writeLock.lock();
+		try {
+			// Eliminamos la información del usuario dentro del sistema.
 			connectedUsers.remove(user);
-		}
-		// Actualizamos la lista de bloqueos, eliminando consigo los bloqueos del usuario.
-		synchronized (blockedUsers) {
 			blockedUsers.remove(user.getUsername());
+		} finally {
+			// Finalmente liberamos el bloqueo de escritura utilizado.
+			writeLock.unlock();
 		}
 	}
 	
 	/**
-	 * Comprueba si un usuario ha bloqueado otro, para dejar de recibir
-	 * sus mensajes dentro del chat.
+	 * Comprueba si un usuario ha bloqueado a otro dentro del sistema.
 	 * 
-	 * @param userSender Usuario del sistema que envío el mensaje en el chat.
-	 * @param userReceiver Usuario del sistema que lo recibiría.
-	 * @return true si el receptor ha bloqueado al remitente, false en caso contrario.
+	 * @param userSender Usuario del sistema que envío el mensaje.
+	 * @param userReceiver Usuario del sistema que recibiría el mensaje.
+	 * @return true si el receptor del mensaje tiene bloqueado al remitente, false en caso contrario.
 	 */
 	private boolean isBlocked(String userSender, String userReceiver) {
-		return blockedUsers.getOrDefault(userReceiver, new HashSet<>()).contains(userSender);
+		// Obtenemos el bloqueo de lectura para consultar la información del posible bloqueo entre usuarios.
+		readLock.lock();
+		try {
+			// Consultamos si el recepto del mensaje tiene bloqueado al remitente.
+			return blockedUsers.getOrDefault(userReceiver, new HashSet<>()).contains(userSender);
+		} finally {
+			// Liberamos el bloqueo de lectura que hemos utilizado.
+			readLock.unlock();
+		}
 	}
 	
 	/**
@@ -175,21 +197,21 @@ public class ChatServer implements IChatServer {
 	}
 	
 	/**
-	 * Hilo encargado de gestionar la sesión del usuario dentro del sistema, así como
-	 * la comunicación entre el usuario y el servidor de manera independiente.
+	 * Clase encargada de gestionar la sesión del usuario dentro del sistema, así como
+	 * la comunicación entre el usuario y el servidor.
 	 * 
 	 * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
-	 * @version 1.2.0
+	 * @version 1.3.0
 	 */
-	private class UserSession implements Runnable {
+	public class UserSession implements Runnable {
 		
 		/** Socket para gestionar la comunicación entre el usuario y el servidor. */
 		private final Socket userSocket;
 		
-		/** Flujo de entrada para recibir los mensajes entrantes del usuario. */
+		/** Flujo de entrada para recibir los mensajes de los usuarios. */
 		private ObjectInputStream inputMessage;
 		
-		/** Flujo de salida para enviar y reenviar los mensajes al usuario. */
+		/** Flujo de salida para enviar los mensajes a los usuarios. */
 		private ObjectOutputStream outputMessage;
 		
 		/** Nombre del usuario dentro del sistema. */
@@ -198,26 +220,26 @@ public class ChatServer implements IChatServer {
 		/**
 		 * Constructor de la clase UserSession.
 		 * <p>
-		 * Inicializa los recursos necesarios para gestionar la sesión del usuario 
-		 * dentro del sistema, así como la comunicación entre el usuario y el servidor 
-		 * de manera independiente.
+		 * Inicializa los recursos necesarios para gestionar la sesión del usuario dentro
+		 * del sistema, así como la comunicación entre el usuario y el servidor de manera
+		 * independiente.
 		 * </p>
 		 * 
-		 * @param userSocket Socket para gestionar la sesión y la comunicación con el usuario.
+		 * @param userSocket Socket para gestionar la sesión y comunicación con el usuario.
 		 */
 		public UserSession(Socket userSocket) {
 			this.userSocket = userSocket;
 		}
 		
 		/**
-		 * Inicializa el hilo, y se encarga de gestionar la sesión del usuario 
-		 * dentro del sistema, así como la comunicación entre el usuario y el servidor 
+		 * Inicializa un nuevo hilo, y se encarga de gestionar la sesión del usuario
+		 * dentro del sistema, así como la comunicación entre el usuario y el servidor
 		 * de manera independiente.
 		 */
 		@Override
 		public void run() {
 			try {
-				// Inicializamos los flujos para recibir y enviar los mensajes.
+				// Inicializamos los flujos para recibir y mandar los mensajes a los usuarios.
 				outputMessage = new ObjectOutputStream(userSocket.getOutputStream());
 				inputMessage = new ObjectInputStream(userSocket.getInputStream());
 				
@@ -233,6 +255,7 @@ public class ChatServer implements IChatServer {
 					ChatMessage newMessage = (ChatMessage) inputMessage.readObject();
 					handleNewMessage(newMessage);
 				}
+				
 			} catch (IOException | ClassNotFoundException e) {
 				System.err.print("[" + getCurrentTime() + "][SERVER]: Error en la comunicación con " + username + ": " + e.getMessage());
 			} finally {
@@ -242,13 +265,14 @@ public class ChatServer implements IChatServer {
 		}
 		
 		/**
-		 * Procesa el mensaje recibido del usuario antes de ser reenviado
-		 * al resto de usuarios conectados.
+		 * Procesa el mensaje recibido del usuario antes de ser reenviado al
+		 * resto de usuarios conectados.
 		 * 
 		 * @param newMessage Nuevo mensaje recibido que se desea procesar.
 		 */
 		private void handleNewMessage(ChatMessage newMessage) {
 			
+			// Procesamos el mensaje según el tipo recibido.
 			switch (newMessage.getMessageType()) {
 			
 				// Si el usuario ha decidido desconectarse, gestionamos su desconexión del sistema y del servidor.
@@ -261,7 +285,7 @@ public class ChatServer implements IChatServer {
 					handleBlock(newMessage.getMessageContent());
 					break;
 					
-				// Si el usuario desea desbloquear a otro, gestionamos el desbloqueo dentro del sistema.
+					// Si el usuario desea desbloquear a otro, gestionamos el desbloqueo dentro del sistema.
 				case UNBAN:
 					handleUnblock(newMessage.getMessageContent());
 					break;
@@ -272,7 +296,7 @@ public class ChatServer implements IChatServer {
 					break;
 			}
 		}
-			
+		
 		/**
 		 * Gestiona la desconexión de un usuario dentro del sistema.
 		 */
@@ -283,58 +307,99 @@ public class ChatServer implements IChatServer {
 		}
 		
 		/**
-		 * Gestiona la solicitud de bloqueo de un usuario.
-		 * <p>
-		 * Permite que un usuario bloquee a otro dentro del chat, evitando así que reciba sus mensajes
-		 * dentro del chat.
-		 * </p>
+		 * Gestiona una solicitud de un bloqueo dentro de un usuario.
 		 * 
-		 * @param userToBlock Nombre del usuario que se desea bloquear.
+		 * @param userToBlock Usuario que se desea bloquear dentro del sistema.
 		 */
 		private void handleBlock(String userToBlock) {
-			// Registramos el bloqueo del usuario dentro del servidor y sistema.
-			synchronized (blockedUsers) {
+			// Obtenemos el bloqueo de escritura para gestionar la solictud de un bloqueo dentro de un usuario.
+			writeLock.lock();
+			try {
+				// Miramos si el usuario a bloquear no esta conectado, mandamos un mensaje de error al usuario.
+				if (!isUserConnected(userToBlock)) {
+					ChatMessage errorNotification = new ChatMessage("SERVER", MessageType.MESSAGE, 
+							"No se puede bloquear a " + userToBlock + " porque no está conectado.");
+					sendMessage(errorNotification);
+					return;
+				}
+				
+				// Miramos si el usuario a bloquear ya lo tiene bloqueado.
 				HashSet<String> userBlockList = blockedUsers.get(username);
-				if (userBlockList == null) {
-			        userBlockList = new HashSet<>();  // Inicializa la lista si no existe
-			        blockedUsers.put(username, userBlockList);
-			    }
+				if (userBlockList.contains(userToBlock)) {
+					ChatMessage errorNotification = new ChatMessage("SERVER", MessageType.MESSAGE, 
+							"No se puede bloquear a " + userToBlock + " porque ya lo has bloqueado.");
+					sendMessage(errorNotification);
+					return;
+				}
+				
+				// Si el bloqueo es valido, lo añadimos el usuario es bloqueado y avisamos al sistema.
 				userBlockList.add(userToBlock);
+				System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha bloqueado a " + userToBlock + ".");
+				sendBroadcastMessage(new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha bloqueado a " + userToBlock + "."));
+			} finally {
+				// Liberamos el bloqueo de escritura que hemos utilizado.
+				writeLock.unlock();
 			}
-			// Informamos a todos los usuarios conectados sobre el bloqueo realizado.
-			System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha bloqueado a " + userToBlock + ".");
-			ChatMessage blockNotification = new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha bloqueado a " + userToBlock + ".");
-			sendBroadcastMessage(blockNotification);
 		}
 		
 		/**
-		 * Gestiona la solicitud de desbloqueo de un usuario.
-		 * <p>
-		 * Permite que un usuario desbloque a otro usuario del chat, permitiendo así que vuelva a recibir
-		 * sus mensajes dentro del chat.
-		 * </p>
+		 * Gestiona una solictud de un desbloqueo dentro del sistema.
 		 * 
-		 * @param userToUnblock Nombre del usuario que se desea desbloquear.
+		 * @param userToUnblock Usuario que se desea desbloquear dentro del sistema.
 		 */
 		private void handleUnblock(String userToUnblock) {
-			// Registramos el desbloqueo del usuario dentro del servidor y sistema.
-			synchronized (blockedUsers) {
-		        HashSet<String> userBlockList = blockedUsers.get(username);
-		        if (userBlockList != null) {
-		        	userBlockList.remove(userToUnblock);
-		        	if (userBlockList.isEmpty()) {
-		                blockedUsers.remove(username);
-		            }
-		        }
-		    }
-			// Informamos a todos los usuarios conetctados sobre el desbloqueo realizado.
-			System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha desbloqueado a " + userToUnblock + ".");
-			ChatMessage unblockNotification = new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha desbloqueado a " + userToUnblock + ".");
-			sendBroadcastMessage(unblockNotification);
+			// Obtenemos el bloqueo de escritura para gestionar la solicitud del desbloqueo dentro del sistema.
+			writeLock.lock();
+			try {
+				// Miramos si el usuario a desbloquear no esta conectado, mandamos un mensaje de error al usuario.
+				if (!isUserConnected(userToUnblock)) {
+					ChatMessage errorNotification = new ChatMessage("SERVER", MessageType.MESSAGE, 
+							"No se puede desbloquear a " + userToUnblock + " porque no está conectado.");
+					sendMessage(errorNotification);
+					return;
+				}
+				
+				// Miramos si el usuario a desbloquear estaba realmente estaba bloqueado en el sistema.
+				HashSet<String> userBlockList = blockedUsers.get(username);
+				if (!userBlockList.contains(userToUnblock)) {
+					ChatMessage errorNotification = new ChatMessage("SERVER", MessageType.MESSAGE, 
+							"No se puede desbloquear a " + userToUnblock + " porque no está bloqueado.");
+					sendMessage(errorNotification);
+                    return;
+                }
+				
+				// Si el desbloqueo es válido, lo efectuamos y avisamos al resto de usuarios conectados.
+				userBlockList.remove(userToUnblock);
+                System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha desbloqueado a " + userToUnblock + ".");
+                sendBroadcastMessage(new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha desbloqueado a " + userToUnblock + "."));
+			} finally {
+				// Liberamos el bloqueo de escritura utilizado.
+				writeLock.unlock();
+			}
 		}
 		
 		/**
-		 * Cierra la sesión y comunicación con el usuario de forma segura.
+		 * Comprueba si un usuario está conectado en el sistema.
+		 */
+		private boolean isUserConnected(String user) {
+			// Obtenemos el bloqueo de lectura para comprobar el estado de un usuario dentro del sistema.
+			readLock.lock();
+			try {
+				// Miramos si el usuario esta conectado en el sistema, mirando si su nombre esta en el sistema.
+				for (UserSession userSession : connectedUsers) {
+					if (user.equalsIgnoreCase(userSession.getUsername())) {
+						return true;
+					}
+				}
+				return false;
+			} finally {
+				// Liberamos el bloqueo de lectura utilizado.
+				readLock.unlock();
+			}
+		}
+		
+		/**
+		 * Cierra la sesión y la comunicación con el usuario de forma segura.
 		 */
 		public void closeConnection() {
 			try {

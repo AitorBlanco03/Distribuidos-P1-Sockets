@@ -1,6 +1,5 @@
 package es.ubu.lsi.server;
 
-// Importamos las librerías/paquetes para definir la lógica y las operaciones básicas del servidor.
 import es.ubu.lsi.common.ChatMessage;
 
 /**

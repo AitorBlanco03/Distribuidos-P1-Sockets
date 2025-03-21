@@ -1,6 +1,5 @@
 package es.ubu.lsi.client;
 
-// Importamos las librerías/paquetes necesarías para el funcionamiento de los usuarios.
 import java.io.*;
 import java.net.*;
 import java.util.*;

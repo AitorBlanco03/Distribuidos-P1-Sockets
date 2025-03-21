@@ -1,6 +1,5 @@
 package es.ubu.lsi.common;
 
-// Importamos las librerías/paquetes necesarios para crear los mensajes del chat.
 import java.io.Serializable;
 
 /**

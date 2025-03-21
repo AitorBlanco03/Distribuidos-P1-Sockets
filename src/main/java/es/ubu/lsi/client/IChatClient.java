@@ -1,6 +1,5 @@
 package es.ubu.lsi.client;
 
-// Importamos las librerías/paquetes definir la lógica y las operaciones básicas de los usuarios.
 import es.ubu.lsi.common.ChatMessage;
 
 /**
