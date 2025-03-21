@@ -140,7 +140,7 @@ public class ChatServer implements IChatServer {
 		try {
 			// Añadimos la información del nuevo usuario dentro del sistema.
 			connectedUsers.add(newUser);
-			blockedUsers.put(newUser.getUsername(), new HashSet<>());
+			blockedUsers.putIfAbsent(newUser.getUsername(), new HashSet<>());
 		} finally {
 			// Finalmente liberamos el bloqueo de escritura utilizado.
 			writeLock.unlock();
@@ -324,6 +324,7 @@ public class ChatServer implements IChatServer {
 				}
 				
 				// Miramos si el usuario a bloquear ya lo tiene bloqueado.
+				blockedUsers.putIfAbsent(username, new HashSet<>());
 				HashSet<String> userBlockList = blockedUsers.get(username);
 				if (userBlockList.contains(userToBlock)) {
 					ChatMessage errorNotification = new ChatMessage("SERVER", MessageType.MESSAGE, 
@@ -360,6 +361,7 @@ public class ChatServer implements IChatServer {
 				}
 				
 				// Miramos si el usuario a desbloquear estaba realmente estaba bloqueado en el sistema.
+				blockedUsers.putIfAbsent(username, new HashSet<>());
 				HashSet<String> userBlockList = blockedUsers.get(username);
 				if (!userBlockList.contains(userToUnblock)) {
 					ChatMessage errorNotification = new ChatMessage("SERVER", MessageType.MESSAGE, 
