@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"es.ubu.lsi.client"},{"l":"es.ubu.lsi.common"},{"l":"es.ubu.lsi.server"}];updateSearchResults();
