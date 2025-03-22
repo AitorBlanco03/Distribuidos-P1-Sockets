@@ -295,6 +295,7 @@ public class ChatClient implements IChatClient {
 		// Definimos los valores por defecto para la conexión con el servidor.
 		final String DEFAULT_SERVER_ADDRESS = "localhost";
 		final int DEFAULT_SERVER_PORT = 1500;
+		
 		// Comprobamos la cantidad de argumentos ingresados a través de la línea de comandos.
 		if (args.length < 1 || args.length > 2) {
 			System.err.println("[" + getCurrentTime() + "][ERROR]: Uso incorrecto. Formato esperado:\n"
@@ -302,14 +303,16 @@ public class ChatClient implements IChatClient {
 					+ "\t- 2 Argumentos -> Dirección del servidor y nickname del usuario.");
 			System.exit(1);
 		}
+		
 		// Asignamos los valores en función de los argumentos proporcionados.
 		String serverAddress = (args.length == 2) ? args[0] : DEFAULT_SERVER_ADDRESS;
 		String userName = (args.length == 2) ? args[1] : args[0];
+		
 		// Creamos un nuevo usuario con sus correspondientes datos.
 		ChatClient newUser = new ChatClient(serverAddress, DEFAULT_SERVER_PORT, userName);
+		
 		// Intentamos conectar el usuario al servidor correspondiente.
 		if (newUser.connect()) {
-			System.out.println("[" + getCurrentTime() + "][SYSTEM]: Conexión establecida. ¡Estás listo para comenzar a chatear!");
 			// Enviamos al servidor el username del usuario para iniciar la comunicación.
 			ChatMessage loginMessage = new ChatMessage(userName, MessageType.LOGIN, "");
             newUser.sendMessage(loginMessage);

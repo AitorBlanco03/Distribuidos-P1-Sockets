@@ -178,7 +178,14 @@ public class ChatServer implements IChatServer {
 		readLock.lock();
 		try {
 			// Consultamos si el recepto del mensaje tiene bloqueado al remitente.
-			return blockedUsers.getOrDefault(userReceiver, new HashSet<>()).contains(userSender);
+			Set<String> blockedSet = blockedUsers.getOrDefault(userReceiver, new HashSet<>());
+			
+			for (String blockedUser : blockedSet) {
+			    if (blockedUser.equalsIgnoreCase(userSender)) {
+			        return true;
+			    }
+			}
+			return false;
 		} finally {
 			// Liberamos el bloqueo de lectura que hemos utilizado.
 			readLock.unlock();
@@ -257,7 +264,7 @@ public class ChatServer implements IChatServer {
 				}
 				
 			} catch (IOException | ClassNotFoundException e) {
-				System.err.print("[" + getCurrentTime() + "][SERVER]: Error en la comunicación con " + username + ": " + e.getMessage());
+				System.err.println("[" + getCurrentTime() + "][SERVER]: Error en la comunicación con " + username + ": " + e.getMessage());
 			} finally {
 				// Haya decido desconectarse o haya ocurrido un error, desconectamos al usuario del sistema.
 				closeConnection();
@@ -277,7 +284,9 @@ public class ChatServer implements IChatServer {
 			
 				// Si el usuario ha decidido desconectarse, gestionamos su desconexión del sistema y del servidor.
 				case LOGOUT:
-					handleLogout();
+					System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha salido del chat.");
+					ChatMessage logoutNotification = new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha salido del chat.");
+					sendBroadcastMessage(logoutNotification);
 					return;
 					
 				// Si el usuario desea bloquear a otro, gestionamos el bloqueo dentro del sistema.
@@ -292,18 +301,10 @@ public class ChatServer implements IChatServer {
 					
 				// Cualquier otro mensaje del usuario, gestionamos como un mensaje normal.
 				default:
+					newMessage.setMessageContent("Aitor Blanco Fernández patrocina el mensaje: " + newMessage.getMessageContent());
 					sendBroadcastMessage(newMessage);
 					break;
 			}
-		}
-		
-		/**
-		 * Gestiona la desconexión de un usuario dentro del sistema.
-		 */
-		private void handleLogout() {
-			System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha salido del chat.");
-			ChatMessage logoutNotification = new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha salido del chat.");
-			sendBroadcastMessage(logoutNotification);
 		}
 		
 		/**

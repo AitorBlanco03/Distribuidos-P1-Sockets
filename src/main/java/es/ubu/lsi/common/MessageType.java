@@ -5,7 +5,7 @@ package es.ubu.lsi.common;
  * enviarse dentro del sistema de chat.
  *
  * @author <a href="abf1005@alu.ubu.es">Aitor Blanco Fernández</a>
- * @version 1.2.0
+ * @version 1.3.0
  */
 public enum MessageType {
 	
