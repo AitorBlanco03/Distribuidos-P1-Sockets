@@ -26,7 +26,7 @@ El proyecto se compone de tres partes principales y fundamentales:
 
 ### 1. Servidor (`ChatServerImpl.java`)
 
-> **NOTA:** El servidor no diferencia entre mayúsculas y mínusculas, por lo que los nombres de usuario y los comandos se procesan independiente si están en mayúsculas o en minúsculas.
+> **NOTA:** El servidor no diferencia entre mayúsculas y mínusculas, por lo que los comandos se procesan independiente si están en mayúsculas o en minúsculas.
 
 El servidor es el "corazón" del sistema. Se encarga de:
 
