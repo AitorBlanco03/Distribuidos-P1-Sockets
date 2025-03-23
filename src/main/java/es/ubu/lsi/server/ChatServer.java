@@ -18,18 +18,18 @@ public interface ChatServer {
 	/**
 	 * Inicia el servidor y comienza a aceptar nuevas conexiones entrantes.
 	 */
-	void startServer();
+	void startup();
 	
 	/**
 	 * Detiene el servidor, cerrando todas las conexiones abiertas y dejando
 	 * de aceptar nuevas conexiones entrantes.
 	 */
-	void shutdownServer();
+	void shutdown();
 	
 	/**
 	 * Reenvía el mensaje recibido a todos los usuarios conectados al servidor.
 	 * 
 	 * @param msg Mensaje que se desea reenviar a todos los usuarios conectados al servidor.
 	 */
-	void sendBroadcastMessage(ChatMessage msg);
+	void broadcast(ChatMessage msg);
 }

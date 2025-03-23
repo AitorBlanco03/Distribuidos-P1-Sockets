@@ -44,7 +44,7 @@ public class ChatClientImpl implements ChatClient {
 	private Scanner messageReader;
 	
 	/**
-	 * Constructor de la clase ChatClient.
+	 * Constructor de la clase ChatClientImpl.
 	 * 
 	 * @param serverHost Dirección IP o Nombre del servidor al que el usuario quiere conectarse.
 	 * @param serverPort Puerto del servidor donde estará escuchando las conexiones entrantes.
@@ -275,7 +275,7 @@ public class ChatClientImpl implements ChatClient {
 	}
 	
 	/**
-	 * Main de la clase ChatClient.
+	 * Main de la clase ChatClientImpl.
 	 * <p>
 	 * Inicializa un usuario dentro del sistema y lo conecta al servidor y el chat.
 	 * </p>

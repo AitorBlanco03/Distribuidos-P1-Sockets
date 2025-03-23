@@ -58,7 +58,7 @@ public class ChatServerImpl implements ChatServer {
 	 * </p>
 	 */
 	@Override
-	public void startServer() {
+	public void startup() {
 		// Intentamos iniciar el servidor del chat y su puerto para empezar a escuchar las nuevas conexiones entrantes.
 		try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
 			isRunning = true;
@@ -86,7 +86,7 @@ public class ChatServerImpl implements ChatServer {
 	 * </p>
 	 */
 	@Override
-	public void shutdownServer() {
+	public void shutdown() {
 		// Detenemos el servidor para dejar de escuchar y aceptar nuevas conexiones entrantes.
 		isRunning = false;
 		
@@ -112,7 +112,7 @@ public class ChatServerImpl implements ChatServer {
 	 * @param msg Mensaje recibido que se desea reenviar dentro del sistema.
 	 */
 	@Override
-	public void sendBroadcastMessage(ChatMessage msg) {
+	public void broadcast(ChatMessage msg) {
 		// Obtenemos el bloqueo de lectura para leer todos los usuarios conectados al sistema.
 		readLock.lock();
 		try {
@@ -254,7 +254,7 @@ public class ChatServerImpl implements ChatServer {
 				ChatMessage initialMessage = (ChatMessage) inputMessage.readObject();
 				this.username = initialMessage.getMessageSender();
 				System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " se ha unido al chat.");
-				sendBroadcastMessage(new ChatMessage("SERVER", MessageType.MESSAGE, username + " se ha unido al chat."));
+				broadcast(new ChatMessage("SERVER", MessageType.MESSAGE, username + " se ha unido al chat."));
 				
 				// Mantenemos la sesión y la comunicación con el servidor hasta que el usuario decida desconectarse.
 				while (true) {
@@ -286,7 +286,7 @@ public class ChatServerImpl implements ChatServer {
 				case LOGOUT:
 					System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha salido del chat.");
 					ChatMessage logoutNotification = new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha salido del chat.");
-					sendBroadcastMessage(logoutNotification);
+					broadcast(logoutNotification);
 					return;
 					
 				// Si el usuario desea bloquear a otro, gestionamos el bloqueo dentro del sistema.
@@ -302,7 +302,7 @@ public class ChatServerImpl implements ChatServer {
 				// Cualquier otro mensaje del usuario, gestionamos como un mensaje normal.
 				default:
 					newMessage.setMessageContent("Aitor Blanco Fernández patrocina el mensaje: " + newMessage.getMessageContent());
-					sendBroadcastMessage(newMessage);
+					broadcast(newMessage);
 					break;
 			}
 		}
@@ -337,7 +337,7 @@ public class ChatServerImpl implements ChatServer {
 				// Si el bloqueo es valido, lo añadimos el usuario es bloqueado y avisamos al sistema.
 				userBlockList.add(userToBlock);
 				System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha bloqueado a " + userToBlock + ".");
-				sendBroadcastMessage(new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha bloqueado a " + userToBlock + "."));
+				broadcast(new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha bloqueado a " + userToBlock + "."));
 			} finally {
 				// Liberamos el bloqueo de escritura que hemos utilizado.
 				writeLock.unlock();
@@ -374,7 +374,7 @@ public class ChatServerImpl implements ChatServer {
 				// Si el desbloqueo es válido, lo efectuamos y avisamos al resto de usuarios conectados.
 				userBlockList.remove(userToUnblock);
                 System.out.println("[" + getCurrentTime() + "][SERVER]: " + username + " ha desbloqueado a " + userToUnblock + ".");
-                sendBroadcastMessage(new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha desbloqueado a " + userToUnblock + "."));
+                broadcast(new ChatMessage("SERVER", MessageType.MESSAGE, username + " ha desbloqueado a " + userToUnblock + "."));
 			} finally {
 				// Liberamos el bloqueo de escritura utilizado.
 				writeLock.unlock();
@@ -459,6 +459,6 @@ public class ChatServerImpl implements ChatServer {
 		// Inicializamos el servidor del chat y lo ponemos en marcha en el puerto 1500.
 		final int DEFAULT_SERVER_PORT = 1500;
 		ChatServerImpl server = new ChatServerImpl(DEFAULT_SERVER_PORT);
-		server.startServer();
+		server.startup();
 	}
 }
